@@ -5,57 +5,33 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract Splitter {
     using SafeMath for uint256;
 
-    address private _sender;
-    address[] private _receivers;
+    mapping (address => uint) public balances;
 
-    uint256 private _totalWithdrawn;
-    mapping(address => uint256) private _withdrawn;
-
-    modifier onlySender() {
-        require(msg.sender == _sender, "Only sender can execute");
-        _;
+    function () external {
+        revert("Not supported");
     }
 
-    constructor(address sender, address receiver1, address receiver2) public {
-        require(sender != address(0), "Sender cannot be empty");
+    function split(address receiver1, address receiver2) public payable {
         require(receiver1 != address(0), "Receiver1 cannot be empty");
         require(receiver2 != address(0), "Receiver2 cannot be empty");
+        require(msg.value > 1, "Value should be greater 1 Wei");
 
-        _sender = sender;
-        _receivers.push(receiver1);
-        _receivers.push(receiver2);
-    }
+        uint256 half = msg.value.div(2);
+        balances[receiver1] = balances[receiver1].add(half);
+        balances[receiver2] = balances[receiver2].add(half);
 
-    function () external payable onlySender {
+        uint256 remainder = msg.value.sub(half.mul(2));
+        if(remainder > 0) {
+            msg.sender.transfer(remainder);
+        }
     }
 
     function withdraw() public {
-        address payable account = msg.sender;
-        uint256 amount = _balanceOf(account);
-        require(amount != 0, "Amount cannot be zero");
+        uint256 amount = balances[msg.sender];
+        require(amount > 0, "Amount cannot be zero");
 
-        _withdrawn[account] = _withdrawn[account].add(amount);
-        _totalWithdrawn = _totalWithdrawn.add(amount);
+        balances[msg.sender] = 0;
 
-        account.transfer(amount);
-    }
-
-    function withdrawn(uint256 index) public view returns(uint256) {
-        require(index < _receivers.length, "Receiver does not exist");
-        return _withdrawn[_receivers[index]];
-    }
-
-    function balanceOf(uint256 index) public view returns(uint256) {
-        require(index < _receivers.length, "Receiver does not exist");
-
-        address account = _receivers[index];
-        require(account != address(0), "Account fot found");
-
-        return _balanceOf(account);
-    }
-
-    function _balanceOf(address account) internal view returns(uint256) {
-        uint256 received = address(this).balance.add(_totalWithdrawn);
-        return received.div(2).sub(_withdrawn[account]);
+        msg.sender.transfer(amount);
     }
 }
