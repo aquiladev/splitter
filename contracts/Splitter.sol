@@ -1,8 +1,11 @@
 pragma solidity ^0.5.2;
 
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract Splitter {
+import "./Pausable.sol";
+
+contract Splitter is Ownable, Pausable {
     using SafeMath for uint256;
 
     mapping (address => uint) public balances;
@@ -14,7 +17,7 @@ contract Splitter {
         revert("Not supported");
     }
 
-    function split(address receiver1, address receiver2) public payable {
+    function split(address receiver1, address receiver2) public payable whenNotPaused {
         require(receiver1 != address(0), "Receiver1 cannot be empty");
         require(receiver2 != address(0), "Receiver2 cannot be empty");
         require(msg.value > 1, "Value should be greater 1 Wei");
@@ -25,14 +28,12 @@ contract Splitter {
 
         uint amount = half.mul(2);
         uint256 remainder = msg.value.sub(amount);
-        if(remainder > 0) {
-            msg.sender.transfer(remainder);
-        }
+        balances[msg.sender] = balances[msg.sender].add(remainder);
 
         emit Split(msg.sender, receiver1, receiver2, amount);
     }
 
-    function withdraw() public {
+    function withdraw() public whenNotPaused {
         uint256 amount = balances[msg.sender];
         require(amount > 0, "Amount cannot be zero");
 

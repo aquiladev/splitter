@@ -32,6 +32,12 @@ contract.only('Splitter', accounts => {
             await expectRevert(splitter.split(accounts[1], accounts[2], { value: 1 }), 'Value should be greater 1 Wei');
         });
 
+        it('reverts when paused', async () => {
+            await splitter.pause({ from: accounts[0] });
+
+            await expectRevert(splitter.split(accounts[1], accounts[2], { value: 20 }), 'Paused');
+        });
+
         it('should split', async () => {
             await splitter.split(accounts[1], accounts[2], { value: 2 });
 
@@ -41,24 +47,32 @@ contract.only('Splitter', accounts => {
 
         it('should split and transfer back of remainder when value cannot be splitted equaly', async () => {
             const balanceTrackerSplitter = await balance.tracker(splitter.address);
-            
+
             const { logs } = await splitter.split(accounts[1], accounts[2], { value: 3 });
 
+            (await splitter.balances(accounts[0])).should.be.bignumber.equal('1');
             (await splitter.balances(accounts[1])).should.be.bignumber.equal('1');
             (await splitter.balances(accounts[2])).should.be.bignumber.equal('1');
-            (await balanceTrackerSplitter.delta()).should.be.bignumber.equal('2');
+            (await balanceTrackerSplitter.delta()).should.be.bignumber.equal('3');
             expectEvent.inLogs(logs, 'Split', {
                 sender: accounts[0],
                 receiver1: accounts[1],
                 receiver2: accounts[2],
                 amount: new BN('2')
-              });
+            });
         });
     });
 
     describe('withdraw', function () {
         it('reverts when balance zero', async () => {
             await expectRevert(splitter.withdraw({ from: accounts[1] }), 'Amount cannot be zero');
+        });
+
+        it('reverts when paused', async () => {
+            await splitter.split(accounts[1], accounts[2], { value: 10 });
+            await splitter.pause({ from: accounts[0] });            
+
+            await expectRevert(splitter.withdraw({ from: accounts[1] }), 'Paused');
         });
 
         it('should withdraw for receiver', async () => {
@@ -73,7 +87,7 @@ contract.only('Splitter', accounts => {
             expectEvent.inLogs(logs, 'Withdrawn', {
                 who: accounts[1],
                 amount: new BN('5')
-              });
+            });
         });
     });
 });
