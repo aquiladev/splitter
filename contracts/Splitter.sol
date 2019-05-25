@@ -7,6 +7,9 @@ contract Splitter {
 
     mapping (address => uint) public balances;
 
+    event Split(address indexed sender, address indexed receiver1, address indexed receiver2, uint amount);
+    event Withdrawn(address indexed who, uint amount);
+
     function () external {
         revert("Not supported");
     }
@@ -20,10 +23,13 @@ contract Splitter {
         balances[receiver1] = balances[receiver1].add(half);
         balances[receiver2] = balances[receiver2].add(half);
 
-        uint256 remainder = msg.value.sub(half.mul(2));
+        uint amount = half.mul(2);
+        uint256 remainder = msg.value.sub(amount);
         if(remainder > 0) {
             msg.sender.transfer(remainder);
         }
+
+        emit Split(msg.sender, receiver1, receiver2, amount);
     }
 
     function withdraw() public {
@@ -31,7 +37,8 @@ contract Splitter {
         require(amount > 0, "Amount cannot be zero");
 
         balances[msg.sender] = 0;
-
         msg.sender.transfer(amount);
+
+        emit Withdrawn(msg.sender, amount);
     }
 }
