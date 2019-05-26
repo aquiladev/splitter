@@ -6,7 +6,15 @@ let splitter;
 
 contract('Splitter', accounts => {
     beforeEach(async () => {
-        splitter = await Splitter.new();
+        splitter = await Splitter.new(false);
+    });
+
+    describe('constructor', function () {
+        it('should paused by default', async () => {
+            const contract = await Splitter.new(true);
+
+            (await contract.isPaused()).should.be.equal(true);
+        });
     });
 
     describe('fallback', function () {
@@ -62,16 +70,22 @@ contract('Splitter', accounts => {
 
         it('should consume right amount of wei', async () => {
             const balanceSender = new BN(await web3.eth.getBalance(accounts[0]));
-            const gasPrice = new BN('20000000');
+            const amount = new BN('3');
 
-            const result = await splitter.split(accounts[1], accounts[2], { value: 3, gasPrice });
+            const result = await splitter.split(accounts[1], accounts[2], { value: amount });
 
             const newBalanceSender = new BN(await web3.eth.getBalance(accounts[0]));
-            const gasUsed = new BN(gasPrice).mul(new BN(result.receipt.gasUsed));
-            const delta = balanceSender.sub(newBalanceSender).sub(gasUsed);
-
-            delta.should.be.bignumber.equal('3');
+            const txFee = await getTxFee(result.receipt);
+            const balance = balanceSender.sub(txFee).sub(amount);
+            balance.should.be.bignumber.equal(newBalanceSender);
         });
+
+        getTxFee = async (receipt) => {
+            let gasUsed = new BN(receipt.gasUsed);
+            let tx = await web3.eth.getTransaction(receipt.transactionHash);
+            let gasPrice = new BN(tx.gasPrice);
+            return gasPrice.mul(gasUsed);
+        }
     });
 
     describe('withdraw', function () {

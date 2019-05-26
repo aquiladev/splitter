@@ -4,9 +4,8 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "./Ownable.sol";
 import "./Pausable.sol";
-import "./Killable.sol";
 
-contract Splitter is Ownable, Pausable, Killable {
+contract Splitter is Ownable, Pausable {
     using SafeMath for uint256;
 
     mapping (address => uint) public balances;
@@ -14,10 +13,10 @@ contract Splitter is Ownable, Pausable, Killable {
     event LogBalanceIncreased(address indexed account, uint amount);
     event LogBalanceDecreased(address indexed account, uint amount);
 
-    constructor() public Pausable(false) {
+    constructor(bool paused) public Pausable(paused) {
     }
 
-    function () external {
+    function () external payable {
         revert("Not supported");
     }
 
