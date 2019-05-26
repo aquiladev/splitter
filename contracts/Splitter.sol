@@ -1,23 +1,32 @@
 pragma solidity ^0.5.2;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
+import "./Ownable.sol";
 import "./Pausable.sol";
+import "./Killable.sol";
 
-contract Splitter is Ownable, Pausable {
+contract Splitter is Ownable, Pausable, Killable {
     using SafeMath for uint256;
 
     mapping (address => uint) public balances;
 
-    event Split(address indexed sender, address indexed receiver1, address indexed receiver2, uint amount);
-    event Withdrawn(address indexed who, uint amount);
+    event LogBalanceIncreased(address indexed account, uint amount);
+    event LogBalanceDecreased(address indexed account, uint amount);
+
+    constructor() public Pausable(false) {
+    }
 
     function () external {
         revert("Not supported");
     }
 
-    function split(address receiver1, address receiver2) public payable whenNotPaused {
+    function split(address receiver1, address receiver2)
+        public
+        payable
+        whenRunning
+        whenAlive {
+
         require(receiver1 != address(0), "Receiver1 cannot be empty");
         require(receiver2 != address(0), "Receiver2 cannot be empty");
         require(msg.value > 1, "Value should be greater 1 Wei");
@@ -30,16 +39,18 @@ contract Splitter is Ownable, Pausable {
         uint256 remainder = msg.value.sub(amount);
         balances[msg.sender] = balances[msg.sender].add(remainder);
 
-        emit Split(msg.sender, receiver1, receiver2, amount);
+        emit LogBalanceIncreased(receiver1, half);
+        emit LogBalanceIncreased(receiver2, half);
+        emit LogBalanceIncreased(msg.sender, remainder);
     }
 
-    function withdraw() public whenNotPaused {
+    function withdraw() public whenRunning {
         uint256 amount = balances[msg.sender];
         require(amount > 0, "Amount cannot be zero");
 
         balances[msg.sender] = 0;
-        msg.sender.transfer(amount);
 
-        emit Withdrawn(msg.sender, amount);
+        emit LogBalanceDecreased(msg.sender, amount);
+        msg.sender.transfer(amount);
     }
 }
