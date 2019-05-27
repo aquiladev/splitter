@@ -2,10 +2,9 @@ pragma solidity ^0.5.2;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-import "./Ownable.sol";
 import "./Pausable.sol";
 
-contract Splitter is Ownable, Pausable {
+contract Splitter is Pausable {
     using SafeMath for uint256;
 
     mapping (address => uint) public balances;
